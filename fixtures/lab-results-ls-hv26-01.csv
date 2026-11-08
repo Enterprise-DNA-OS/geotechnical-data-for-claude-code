@@ -1,0 +1,4 @@
+Project,Location,Sample,Test,Parameter,Value,Units
+HV26,BH01,U1,UU,CU,96,kPa
+HV26,BH01,U2,CON,MV,0.18,m2/MN
+HV26,BH01,U2,CON,CC,0.31,

@@ -2,13 +2,32 @@
   {
     "name": "week",
     "title": "This week",
-    "subtitle": "Geotechnical Data for Claude Code: what needs attention, rendered by npm run view",
+    "subtitle": "What needs attention across every project, rendered by npm run view",
     "sections": [
-      {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
-      }
+      { "title": "Rule checks", "note": "Each line cites its rule in docs/compliance.md.", "sql": "select rule, project, subject, issue from compliance_issues order by rule, project, subject" },
+      { "title": "In the field now", "sql": "select project, location, type, started_on, final_depth as depth_so_far, planned_depth from location_status where status = 'in progress' order by started_on" },
+      { "title": "Lab schedules waiting", "sql": "select schedule, project, lab, stage, days_in_stage, due_on, tests - reported as tests_waiting from schedule_status where stage <> 'results in' order by days_in_stage desc" },
+      { "title": "Piezometers", "sql": "select location, project, kind, last_read_on, last_depth_m, next_due_on from monitoring_status order by next_due_on" }
+    ]
+  },
+  {
+    "name": "lab",
+    "title": "Laboratory",
+    "subtitle": "Schedules, results and the index tests side by side",
+    "sections": [
+      { "title": "Schedules", "sql": "select schedule, project, lab, sent_on, received_on, due_on, results_on, tests, reported, stage from schedule_status order by sent_on desc" },
+      { "title": "Index test results", "note": "Moisture content, Atterberg limits and fines in percent; strengths in kPa.", "sql": "select project, location, sample, from_m, legend, mc_pct, ll, pl, pi, fines_pct, cu_kpa, cbr_pct from lab_summary order by project, location, from_m" },
+      { "title": "Tubes not scheduled", "sql": "select project, subject as location, issue from compliance_issues where rule = 'TUBE_SCHEDULE' order by project, subject" }
+    ]
+  },
+  {
+    "name": "locations",
+    "title": "Locations",
+    "subtitle": "Every borehole, CPT, test pit and hand auger with where its records are up to",
+    "sections": [
+      { "title": "By location", "sql": "select project, location, type, status, final_depth, metres_logged, spts, vanes, samples, tests_pending, coord_method, checked_by, nzgd from location_status order by project, location" },
+      { "title": "SPT and vane checks", "sql": "select project, location, depth_m, recorded_n, calculated_n, check_result from spt_results where check_result <> 'ok' order by project, location, depth_m" },
+      { "title": "NZ Geotechnical Database", "sql": "select p.code as project, l.name as location, l.status, l.completed_on, coalesce(l.nzgd_id, '') as nzgd_id, l.nzgd_uploaded_on from locations l join projects p on p.id = l.project_id where p.nzgd_required order by p.code, l.name" }
     ]
   }
 ]

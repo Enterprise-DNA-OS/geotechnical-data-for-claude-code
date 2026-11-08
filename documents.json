@@ -1,11 +1,41 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "borehole-log",
+    "title": "Borehole log",
+    "for_each": "select l.id, p.code || ' ' || l.name as name from locations l join projects p on p.id = l.project_id where l.loc_type in ('BH', 'TP', 'HA') and l.status in ('complete', 'abandoned', 'in progress') order by p.code, l.name",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      { "title": "Location", "layout": "record", "note": "Coordinates and levels in the project's stated system and datum.", "sql": "select p.code || ' ' || p.name as project, coalesce(c.name, '') as client, l.name as location, l.loc_type as type, l.status, l.method, l.contractor, p.coord_system, l.easting, l.northing, p.height_datum, l.ground_level, l.coord_method as surveyed_by, l.final_depth, l.termination, l.started_on, l.completed_on, coalesce(l.logged_by, '') as logged_by, coalesce(l.checked_by, 'not checked') as checked_by, l.checked_on from locations l join projects p on p.id = l.project_id left join clients c on c.id = p.client_id where l.id = $1" },
+      { "title": "Strata", "note": "Described to the NZGS Field Description of Soil and Rock (2005) or AS 1726-2017.", "sql": "select from_m, to_m, legend, description, coalesce(strength_density, '') as strength_density, coalesce(moisture, '') as moisture, coalesce(weathering, '') as weathering, coalesce(geology_unit, '') as unit from strata where location_id = $1 order by from_m" },
+      { "title": "Standard penetration tests", "note": "N is the blows for the second and third 150 mm after the seating drive.", "sql": "select depth_m, seat_blows, blows_2, blows_3, recorded_n as n, check_result from spt_results where location_id = $1 order by depth_m" },
+      { "title": "Shear vane", "sql": "select depth_m, peak_kpa, remoulded_kpa, sensitivity from vane_results where location_id = $1 order by depth_m" },
+      { "title": "Samples", "sql": "select ref, sample_type as type, from_m, to_m, status from samples where location_id = $1 order by from_m, ref" },
+      { "title": "Groundwater", "sql": "select observed_on, kind, coalesce(depth_m::text, '') as depth_m, note from groundwater where location_id = $1 order by observed_on, depth_m" },
+      { "title": "Open checks", "sql": "select rule, issue from compliance_issues where subject = (select name from locations where id = $1) and project = (select p.code from locations l join projects p on p.id = l.project_id where l.id = $1) order by rule" }
+    ]
+  },
+  {
+    "name": "test-schedule",
+    "title": "Laboratory test schedule",
+    "for_each": "select id, name from schedules order by sent_on, name",
+    "file": "name",
+    "sections": [
+      { "title": "Schedule", "layout": "record", "note": "Sent with the samples. The lab signs the receipt block and returns a copy.", "sql": "select ss.schedule, ss.project, ss.lab, l.accreditation, ss.sent_on, ss.due_on, ss.lab_job, ss.tests from schedule_status ss join schedules sc on sc.id = ss.schedule_id join labs l on l.id = sc.lab_id where ss.schedule_id = $1" },
+      { "title": "Tests requested", "sql": "select lo.name as location, s.ref as sample, s.sample_type as type, s.from_m, s.to_m, t.test, t.method from lab_tests t join samples s on s.id = t.sample_id join locations lo on lo.id = s.location_id where t.schedule_id = $1 and t.status <> 'cancelled' order by lo.name, s.from_m, t.test" },
+      { "title": "Received by the laboratory", "sql": "select '' as name, '' as signature, '' as date_received, '' as samples_counted where $1::uuid is not null" }
+    ]
+  },
+  {
+    "name": "factual-summary",
+    "title": "Site investigation factual summary",
+    "for_each": "select id, code || ' ' || name as name from projects order by code",
+    "file": "name",
+    "sections": [
+      { "title": "Project", "layout": "record", "sql": "select p.code, p.name, coalesce(c.name, '') as client, p.site, p.coord_system, p.height_datum, p.lead_engineer from projects p left join clients c on c.id = p.client_id where p.id = $1" },
+      { "title": "Investigation locations", "sql": "select name as location, loc_type as type, easting, northing, ground_level, coord_method as surveyed_by, final_depth, completed_on, termination from locations where project_id = $1 and status in ('complete', 'abandoned') order by name" },
+      { "title": "Groundwater", "sql": "select l.name as location, g.observed_on, g.kind, coalesce(g.depth_m::text, '') as depth_m from groundwater g join locations l on l.id = g.location_id where l.project_id = $1 and g.kind <> 'reading' order by l.name, g.observed_on" },
+      { "title": "Laboratory results", "sql": "select location, sample, from_m, legend, mc_pct, ll, pl, pi, fines_pct, cu_kpa, cbr_pct from lab_summary where project = (select code from projects where id = $1) order by location, from_m" },
+      { "title": "Open checks", "note": "Clear these before the factual report is issued.", "sql": "select rule, subject, issue from compliance_issues where project = (select code from projects where id = $1) order by rule, subject" }
     ]
   }
 ]
